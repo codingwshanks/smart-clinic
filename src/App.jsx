@@ -2,7 +2,12 @@
 import { useState, useEffect } from "react";
 import { doctors, timeSlots } from "./data";
 import "./App.css";
-import { HeartPulse, CalendarDays, Stethoscope, LayoutDashboard, Sparkles, ChevronLeft, ChevronRight, Clock, CheckCircle, Lock, RefreshCw } from "lucide-react";
+import {
+  HeartPulse, CalendarDays, Stethoscope,
+  LayoutDashboard, Sparkles, ChevronLeft,
+  ChevronRight, Clock, CheckCircle, Lock,
+  RefreshCw, Download, CalendarPlus, X
+} from "lucide-react";
 const API_URL = `${
   import.meta.env.VITE_API_URL || "http://localhost:5000"
 }/api/appointments`;
@@ -23,6 +28,7 @@ function App() {
   const [message, setMessage] = useState("");
   const [service, setService] = useState("All Services");
   const [bookings, setBookings] = useState([]);
+  const [confirmation, setConfirmation] = useState(null);
 
 const [loading, setLoading] = useState(true);
 const [saving, setSaving] = useState(false);
@@ -148,6 +154,88 @@ useEffect(() => {
     setMessage("");
   }
 
+  function formatDate(value) {
+  return new Date(`${value}T12:00:00+05:30`)
+    .toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      timeZone: "Asia/Kolkata"
+    });
+}
+
+function downloadReceipt() {
+  if (!confirmation) return;
+
+  const receipt = `
+MY PAIN CLINIC
+APPOINTMENT CONFIRMATION
+----------------------------------------
+
+Booking Reference: ${confirmation.reference || "Not provided"}
+Patient Name: ${confirmation.patientName}
+Doctor: ${confirmation.doctorName}
+Department: ${confirmation.service}
+Date: ${formatDate(confirmation.date)}
+Time: ${confirmation.time} IST
+Status: Confirmed
+
+----------------------------------------
+Please arrive 10 minutes before your appointment.
+
+Thank you for choosing My Pain Clinic.
+`;
+
+  const blob = new Blob([receipt], {
+    type: "text/plain;charset=utf-8"
+  });
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = "SmartClinic-Appointment.txt";
+
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function addToCalendar() {
+  if (!confirmation) return;
+
+  const [clock, period] = confirmation.time.split(" ");
+  const [hours, minutes] = clock.split(":").map(Number);
+
+  const hour =
+    (hours % 12) + (period === "PM" ? 12 : 0);
+
+  const start = new Date(
+    `${confirmation.date}T${String(hour).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00+05:30`
+  );
+
+  const end = new Date(start.getTime() + 30 * 60000);
+
+  const calendarFormat = value =>
+    value.toISOString().replace(/[-:]|\.\d{3}/g, "");
+
+  const params = new URLSearchParams({
+    action: "TEMPLATE",
+    text: "My Pain Clinic Appointment",
+    dates: `${calendarFormat(start)}/${calendarFormat(end)}`,
+    details: "Scheduled clinic consultation",
+    ctz: "Asia/Kolkata"
+  });
+
+  window.open(
+    `https://calendar.google.com/calendar/render?${params}`,
+    "_blank",
+    "noopener,noreferrer"
+  );
+}
+
   
 async function bookAppointment(e) {
   e.preventDefault();
@@ -203,6 +291,18 @@ async function bookAppointment(e) {
     setMessage(
       `Appointment confirmed with ${doctor.name} on ${date} at ${time}.`
     );
+
+    setConfirmation({
+  reference:
+    data.appointment?._id ||
+    data._id ||
+    null,
+  patientName: name.trim(),
+  doctorName: doctor.name,
+  service: doctor.service,
+  date: date,
+  time: time
+});
 
     setBookings(previous => [
       ...previous,
@@ -284,6 +384,120 @@ async function bookAppointment(e) {
           <div className="table-wrapper" id="specialists"><table><thead><tr><th>Service</th><th>Specialist</th>{timeSlots.map(t=><th key={t}>{t}</th>)}</tr></thead><tbody>{filteredDoctors.map(d=><tr key={d.id}><td><span className="service-tag">{d.service}</span></td><td><div className="doctor"><span className="avatar">{d.name.replace('Dr. ','').slice(0,2).toUpperCase()}</span><div><strong>{d.name}</strong><small>{d.experience} years experience</small></div></div></td>{timeSlots.map(t=>{const booked=isBooked(d.id,date,t);const past=isPastSlot(date,t);const selected=doctor?.id===d.id&&time===t;const status=loading||apiError?'Unknown':booked?'Booked':past?'Unavailable':selected?'Selected':'Available';return <td key={t}><button className={`slot ${status.toLowerCase()}`} disabled={blocked||booked||past} onClick={()=>selectSlot(d,t)}>{booked?<Lock size={13}/>:selected?<CheckCircle size={13}/>:null}{status}</button></td>})}</tr>)}</tbody></table></div>
         </section>
         {doctor && time && <form className="booking-form" onSubmit={bookAppointment}><div><div className="eyebrow">YOUR APPOINTMENT</div><h2>Confirm your visit</h2><p>{doctor.name} · {doctor.service}</p><p>{date} · {time} IST</p></div><label>Patient name<input required maxLength={100} value={name} disabled={saving} onChange={e=>setName(e.target.value)} placeholder="Enter full name"/></label><button className="primary" disabled={blocked} type="submit">{saving?'Booking…':'Confirm appointment'} <CheckCircle size={18}/></button></form>}
+        {confirmation && (
+  <div className="confirmation-overlay">
+    <div
+      className="confirmation-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="confirmation-title"
+      onKeyDown={e => {
+        if (e.key === "Escape") setConfirmation(null);
+      }}
+    >
+      <button
+        className="modal-close"
+        aria-label="Close confirmation"
+        onClick={() => setConfirmation(null)}
+      >
+        <X size={21} />
+      </button>
+
+      <div className="success-icon">
+        <CheckCircle size={38} />
+      </div>
+
+      <div className="confirmation-heading">
+        <span className="eyebrow">BOOKING SUCCESSFUL</span>
+
+        <h2 id="confirmation-title">
+          Appointment Confirmed!
+        </h2>
+
+        <p>
+          Your appointment has been successfully scheduled.
+        </p>
+      </div>
+
+      <div className="confirmation-details">
+
+        {confirmation.reference && (
+          <div className="reference-box">
+            <span>BOOKING REFERENCE</span>
+            <strong>{confirmation.reference}</strong>
+          </div>
+        )}
+
+        <div className="detail-row">
+          <span>Patient</span>
+          <strong>{confirmation.patientName}</strong>
+        </div>
+
+        <div className="detail-row">
+          <span>Specialist</span>
+          <strong>{confirmation.doctorName}</strong>
+        </div>
+
+        <div className="detail-row">
+          <span>Department</span>
+          <strong>{confirmation.service}</strong>
+        </div>
+
+        <div className="detail-row">
+          <span>Date</span>
+          <strong>{formatDate(confirmation.date)}</strong>
+        </div>
+
+        <div className="detail-row">
+          <span>Time</span>
+          <strong>{confirmation.time} IST</strong>
+        </div>
+
+        <div className="detail-row">
+          <span>Status</span>
+          <strong className="confirmed-status">
+            Confirmed
+          </strong>
+        </div>
+      </div>
+
+      <div className="appointment-note">
+        <Clock size={18} />
+        <span>
+          Please arrive 10 minutes before your appointment.
+        </span>
+      </div>
+
+      <div className="confirmation-actions">
+
+        <button
+          className="receipt-button"
+          onClick={downloadReceipt}
+        >
+          <Download size={18} />
+          Download Receipt
+        </button>
+
+        <button
+          className="receipt-button"
+          onClick={addToCalendar}
+        >
+          <CalendarPlus size={18} />
+          Add to Google Calendar
+        </button>
+
+        <button
+          className="primary"
+          autoFocus
+          onClick={() => setConfirmation(null)}
+        >
+          Done
+        </button>
+
+      </div>
+    </div>
+  </div>
+)}
         <footer>My Pain Clinic · Appointment scheduling portal</footer>
       </main>
     </div>
