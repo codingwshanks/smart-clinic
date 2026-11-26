@@ -294,9 +294,10 @@ async function bookAppointment(e) {
 
     setConfirmation({
   reference:
-    data.appointment?._id ||
-    data._id ||
-    null,
+  data.appointmentId ||
+  data.appointment?._id ||
+  data._id ||
+  null,
   patientName: name.trim(),
   doctorName: doctor.name,
   service: doctor.service,

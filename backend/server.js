@@ -19,13 +19,32 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 5000;
 
+
 const doctors = {
   1: { name: "Dr. Shashank", service: "Physiotherapy" },
   2: { name: "Dr. Kapoor", service: "Pain Management" },
   3: { name: "Dr. Sahil", service: "Sports Injury" },
   4: { name: "Dr. Sharma", service: "Spine Care" },
-  5: { name: "Dr. Mehta", service: "Rehabilitation" }
+  5: { name: "Dr. Mehta", service: "Rehabilitation" },
+
+  6: { name: "Dr. Riya", service: "Physiotherapy" },
+  7: { name: "Dr. Malhotra", service: "Pain Management" },
+  8: { name: "Dr. Arjun", service: "Sports Injury" },
+  9: { name: "Dr. Verma", service: "Spine Care" },
+  10: { name: "Dr. Neha", service: "Rehabilitation" },
+
+  11: { name: "Dr. Patel", service: "Orthopedic Care" },
+  12: { name: "Dr. Desai", service: "Orthopedic Care" },
+  13: { name: "Dr. Rao", service: "Neurological Rehabilitation" },
+  14: { name: "Dr. Iyer", service: "Neurological Rehabilitation" },
+  15: { name: "Dr. Shah", service: "Chiropractic Care" },
+  16: { name: "Dr. Karan", service: "Chiropractic Care" },
+  17: { name: "Dr. Joshi", service: "Geriatric Physiotherapy" },
+  18: { name: "Dr. Anjali", service: "Geriatric Physiotherapy" },
+  19: { name: "Dr. Gupta", service: "Occupational Therapy" },
+  20: { name: "Dr. Priya", service: "Occupational Therapy" }
 };
+
 
 const timeSlots = [
   "10:00 AM",
