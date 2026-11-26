@@ -1,12 +1,13 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { doctors, timeSlots } from "./data";
 import "./App.css";
 import Services from "./components/Services";
 import Doctors from "./components/Doctors";
 import BookingAssistant from "./components/BookingAssistant";
 import LiveClock from "./components/LiveClock";
-import {
+import ClinicStatus from "./components/ClinicStatus";
+import Toast from "./components/Toast";import {
   HeartPulse, CalendarDays, Stethoscope,
   LayoutDashboard, Sparkles, ChevronLeft,
   ChevronRight, Clock, CheckCircle, Lock,
@@ -30,6 +31,7 @@ function App() {
   const [time, setTime] = useState("");
   const [name, setName] = useState("");
   const [message, setMessage] = useState("");
+  const [toast, setToast] = useState(null);
   const [service, setService] = useState("All Services");
   const [bookings, setBookings] = useState([]);
   const [confirmation, setConfirmation] = useState(null);
@@ -44,6 +46,21 @@ const [scheduleDoctorId, setScheduleDoctorId] =
 const [loading, setLoading] = useState(true);
 const [saving, setSaving] = useState(false);
 const [apiError, setApiError] = useState("");
+
+function showToast(type, title, message) {
+
+  setToast({
+    id: Date.now(),
+    type,
+    title,
+    message
+  });
+
+}
+
+const closeToast = useCallback(() => {
+  setToast(null);
+}, []);
 
 async function fetchBookings() {
   try {
@@ -118,6 +135,12 @@ useEffect(() => {
 
     if (!input) {
       setMessage("Please describe your requirement.");
+
+      showToast(
+  "warning",
+  "Describe your concern",
+  "Please enter your requirement to find a specialist."
+);
       return;
     }
 
@@ -127,6 +150,12 @@ useEffect(() => {
 
     if (!result) {
       setMessage("Please select a service manually.");
+
+      showToast(
+  "info",
+  "No matching specialist",
+  "Please select a healthcare service manually."
+);
       return;
     }
 
@@ -153,6 +182,12 @@ useEffect(() => {
         setDate(bookingDate);
         setTime(availableSlot);
         navigateTo("appointments");
+
+        showToast(
+  "success",
+  "Specialist found!",
+  `${result.name} is available for your suggested appointment.`
+);
         setMessage(
           `Suggested service: ${result.service}. ` +
           `Your appointment has been prepared.`
@@ -162,6 +197,12 @@ useEffect(() => {
     }
 
     setMessage("No available slots found in the next 30 days.");
+
+    showToast(
+  "warning",
+  "No available appointments",
+  "Please explore other specialists or dates."
+);
   }
 
   function selectSlot(selectedDoctor, slot) {
@@ -292,16 +333,26 @@ async function bookAppointment(e) {
   }
 
   if (!doctor || !date || !time || !name.trim()) {
-    setMessage("Please complete all appointment details.");
-    return;
+setMessage("Please complete all appointment details.");
+
+showToast(
+  "warning",
+  "Incomplete details",
+  "Please complete all appointment details."
+);    return;
   }
 
   if (
     isBooked(doctor.id, date, time) ||
     isPastSlot(date, time)
   ) {
-    setMessage("This time slot is unavailable.");
-    return;
+setMessage("This time slot is unavailable.");
+
+showToast(
+  "error",
+  "Slot unavailable",
+  "Please select another appointment time."
+);    return;
   }
 
   try {
@@ -325,8 +376,13 @@ async function bookAppointment(e) {
     const data = await response.json();
 
     if (!response.ok) {
-      setMessage(data.message || "Booking failed.");
+setMessage(data.message || "Booking failed.");
 
+showToast(
+  "error",
+  "Booking failed",
+  data.message || "Please try another appointment slot."
+);
       if (response.status === 409) {
         await fetchBookings();
         setTime("");
@@ -338,6 +394,12 @@ async function bookAppointment(e) {
     setMessage(
       `Appointment confirmed with ${doctor.name} on ${date} at ${time}.`
     );
+
+    showToast(
+  "success",
+  "Appointment confirmed!",
+  `Your appointment with ${doctor.name} has been booked successfully.`
+);
 
     setConfirmation({
   reference:
@@ -369,6 +431,12 @@ async function bookAppointment(e) {
 
   } catch (error) {
     setMessage("Unable to connect to the server. Please try again.");
+
+showToast(
+  "error",
+  "Connection failed",
+  "Unable to connect to the server. Please try again."
+);
 
   } finally {
     setSaving(false);
@@ -406,6 +474,10 @@ async function bookAppointment(e) {
   ];
   return (
     <div className="shell">
+      <Toast
+  toast={toast}
+  onClose={closeToast}
+/>
       <aside className="sidebar">
         <a className="brand" href="#dashboard"><span className="brand-icon"><HeartPulse /></span><span>My Pain Clinic<small>HEALTH & WELLNESS</small></span></a>
         <div className="nav-label">WORKSPACE</div>
@@ -466,7 +538,8 @@ async function bookAppointment(e) {
 
 </nav>
 
-        <div className="side-note">PATIENT PORTAL<p>Find a specialist and schedule your next visit.</p></div>
+        
+      <ClinicStatus />
       </aside>
       <main id="dashboard" className="workspace">
         
